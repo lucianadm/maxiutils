@@ -1,17 +1,3 @@
-/*********************************************************************************
-Version 17/10/14
-    fixed function normalize_vector for constant vectors
-
-Version 25/09/14
-    fixed function normalize_PDF for non integer vectors
-
-Version 01/09/14
-    added normalize_PDF
-    added PDF_hist2
-
-Version 30/10/2016
-    ESTA VERSIÓN NO ES COMPATIBLE CON LAS ANTERIORES, ya no se usa la primer posición para dar el largo del vector
-*********************************************************************************/
 #ifndef MAXIUTILS_H_INCLUDED
 #define MAXIUTILS_H_INCLUDED
 
@@ -19,29 +5,9 @@ Version 30/10/2016
 #include <math.h>/*************************Tiene los logaritmos, la potencia y nan*/
 #include <stdlib.h>/**********************Biblioteca para llamar a malloc*/
 #include <string.h>/*********************Tiene strcmp()*/
-/********************************************************************************
-Bandt & Pompe PDF with amplitude contributuions is used in PDF_BPW
-    Reference: Weighted permutation entropy: a complexity measure for
-               time series incorporating amplitude information.
-               Physical Review E 87 (2013) 022911. B. Fadlallah, B. Chen, A. Keil, J. Principe
 
 
 
-Due to (problem 1) the functions only can return only one value (or pointer, or struct), and (problem 2)
-the pointer returned of a function no have information about the length of the pointed vector, ALL
-VECTORS MUST HAVE ITS OWN LENGTH IN THE FIRST POSITION (data_vector[0]=lenght_of_data_vector).
-
-All vectors are allocated in memory after each function in order to be valid out of the subrutine,
-is necessary unlock the the memory positions with function free(pointer) in main() function.
-************************************************************************************/
-//unsigned long int length(double* x_vec[])
-//{
-//    unsigned long int LengthX = (sizeof(x_vec)/sizeof(x_vec[0])); /*************Función para calcular la longitud de un vector*/
-//    return LengthX;
-//}
-
-double* normalize_vector(double x_vec[])
-{
 /******************************************************
 Generates a normalized version of the input vector
 
@@ -56,21 +22,56 @@ Caution:
     The allocated vector needs to be unallocated with free(pointer) outside
     this function.
 *******************************************************/
+double* normalize_vector(double x_vec[], double Margins[2])
+{
     unsigned long int LengthX = x_vec[0];
-    double x_min = x_vec[1], x_max = x_vec[1];
+    double x_vec_min = +HUGE_VAL, x_vec_max = -HUGE_VAL;
+    double x_min, x_max;
+    double NextBelowOne = nextafter(1,0);
     double* x_norm; //Declare the pointer
         x_norm = (double*) malloc (sizeof(double) * (LengthX + 1)); //Creates the array.
         x_norm[0] = LengthX;
-
-    for (unsigned long int i_vec = 2; i_vec <= LengthX; i_vec++)
+    //Busca los máximos y mínimos de la serie
+    for (unsigned long int i_vec = 1; i_vec <= LengthX; i_vec++)
     {
-        if (x_vec[i_vec]<x_min) x_min = x_vec[i_vec];//Find the maximum in order to normalize
-        if (x_vec[i_vec]>x_max) x_max = x_vec[i_vec];//Find the minimum in order to normalize
+        if (x_vec[i_vec]<x_vec_min) x_vec_min = x_vec[i_vec];//Find the maximum in order to normalize
+        if (x_vec[i_vec]>x_vec_max) x_vec_max = x_vec[i_vec];//Find the minimum in order to normalize
     }
 
+    //Define el margen inferior para normalizar
+    if isnan(Margins[0])
+    {
+        x_min = x_vec_min;
+    }
+    else if (x_vec_min < Margins[0])
+    {
+        puts("normalize_vector: Input vector out of inferior range. Normalizing by default: minimum value of the series to zero.");
+        x_min = x_vec_min;
+    }
+    else
+    {
+        x_min = Margins[0];
+    }
+
+    //Define el margen superior para normalizar
+    if isnan(Margins[1])
+    {
+        x_max = x_vec_max;
+    }
+    else if (x_vec_max > Margins[1])
+    {
+        puts("normalize_vector: Input vector out of superior range. Normalizing by default: maximum value of the series to one.");
+        x_max = x_vec_max;
+    }
+    else
+    {
+        x_max = Margins[1];
+    }
+    //Verifica que la amplitud no sea nula
     if (x_max == x_min) //If amplitude is equals zero, vector is non-normalizable
     {
         for (unsigned long int i = 1; i <= LengthX; i++) x_norm[i] = 0; //The output is a zero vector
+        puts("normalize_vector: Input vector is constant. Output by default is zero vector.");
     }
     else
     {
@@ -78,7 +79,7 @@ Caution:
         for (unsigned long int i = 1; i <= LengthX; i++)
         {
             x_norm[i] = inv_amplitude * (x_vec[i] - x_min);//Normalizes each component of the vector
-            if (x_norm[i] >= 0.999999999999999) x_norm[i] = 0.999999999999990;
+            if (x_norm[i] >= 1) x_norm[i] = NextBelowOne;//Normalized vector has interval [0 1)
         }
     }
 
@@ -128,7 +129,7 @@ Caution:
     The allocated vector needs to be unallocated with free(pointer) outside
     this function.
 ********************************************************************************/
-double* PDF_val(double x_vec[], unsigned long int bins, char DataType[], char ResultType[]) //Ver como hacer para meter cantidad variable de argumentos
+double* PDF_val(double x_vec[], unsigned long int bins, double Margins[2], char ResultType[]) //Ver como hacer para meter cantidad variable de argumentos
 {
     unsigned long int LengthX = x_vec[0];//The length of data vector
 
@@ -137,39 +138,17 @@ double* PDF_val(double x_vec[], unsigned long int bins, char DataType[], char Re
         PDF_val_vec[0] = (double)bins;
         for (unsigned long int i_hist = 1; i_hist <= bins; i_hist++) PDF_val_vec[i_hist] = 0; //Initializes the PDF at zero.
 
-    if (strcmp(DataType,"normalyzed") == 0)
-    {
-        double* x_norm = normalize_vector(x_vec);//Vector must be normalyzed. x_norm  will be a pointer asociated to an allocated array
+    double* x_norm = normalize_vector(x_vec, Margins);//Vector must be normalyzed. x_norm  will be a pointer asociated to an allocated array
 
-        unsigned long int histogram_index;
-        for (unsigned long int i_norm = 1; i_norm <= LengthX; i_norm++)//For each position of the normalyzed vector. Are missing the last embedd-1 positions
-        {
-            histogram_index = (unsigned long int)floor((double)bins * x_norm[i_norm]) + 1;//Calculate the index for histogram
-            PDF_val_vec[histogram_index] += 1;//Increment the position
-        }
-        free(x_norm);//Releases the vector allocated by normalize_vector() function.
-    }
-    else if (strcmp(DataType,"unnormalyzed") == 0)//Generates the Histogram PDF for vectors of integers with known possible values between 0 and bins
+    unsigned long int histogram_index;
+    for (unsigned long int i_norm = 1; i_norm <= LengthX; i_norm++)//For each position of the normalyzed vector. Are missing the last embedd-1 positions
     {
-        for (unsigned long int i_vec = 1; i_vec <= LengthX; i_vec++)//For each position of the normalyzed vector. Are missing the last embedd-1 positions
-        {
-            PDF_val_vec[(unsigned long int)x_vec[i_vec]] += 1;//Increment the position
-        }
+        histogram_index = (unsigned long int)floor((double)bins * x_norm[i_norm]) + 1;//Calculate the index for histogram
+        PDF_val_vec[histogram_index] += 1;//Increment the position
     }
-    else
-    {
-        puts("PDF_val: Type of data normalization may be normalyzed or unnormalyzed. Default = normalyzed");
-        double* x_norm = normalize_vector(x_vec);//Vector must be normalyzed. x_norm  will be a pointer asociated to an allocated array
+    free(x_norm);//Releases the vector allocated by normalize_vector() function.
 
-        unsigned long int histogram_index;
-        for (unsigned long int i_norm = 1; i_norm <= LengthX; i_norm++)//For each position of the normalyzed vector. Are missing the last embedd-1 positions
-        {
-            histogram_index = (unsigned long int)floor((double)bins * x_norm[i_norm]) + 1;//Calculate the index for histogram
-            PDF_val_vec[histogram_index] += 1;//Increment the position
-        }
-        free(x_norm);//Releases the vector allocated by normalize_vector() function.
-    }
-
+    //Elige y devuelve el resultado
     if (strcmp(ResultType,"normalyzed") == 0)
     {
         normalize_PDF(PDF_val_vec);
@@ -188,13 +167,6 @@ double* PDF_val(double x_vec[], unsigned long int bins, char DataType[], char Re
 
 /**********************PDF_BP*********************************************
 Generates Bandt & Pompe PDF.
-
-Bandt & Pompe PDF is used to make a causal PDF in functions PDF_BP and PDF_BPW
-    Reference: Permutation entropy: a natural complexity for time series
-               Physical Review Letters 88 (2002) 174102. C. Bandt, B. Pompe
-
-Lemher lexicographic method is used in Bandt & Pompe PDF's.
-    Reference: www.keithschwarz.com/interesting/code/?dir=factoradic-permutation
 
 Parameters:
     x_vec is the input vector. The first position of x_vec is its own length
