@@ -3,6 +3,7 @@
 #include "maxiutils.h"
 int main()
 {
+    /**
     double a;
     double Margins[2];
     double b[16];
@@ -45,4 +46,18 @@ int main()
         printf("PDF_val_b[%d] -- %.60e\n", i, PDF_val_b[i]);
     }
     puts("");
+    /**/
+
+    puts("Busca período");
+    double DoubleAux;
+    double Vector[] = {10, 3, 5, 5, 5, 1, 1, 3, 2, 5, 5};
+    printf("Vector = ");
+    for (int i = 1; i <= Vector[0]; i++)
+    {
+        printf("%.0f ", Vector[i]);
+    }
+    DoubleAux = find_period(Vector, 2);
+    printf("\nfind_period(Vector, 2)\t%.0f\n", DoubleAux);
+    printf("\n");
+    /**/
 }
