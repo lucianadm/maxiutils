@@ -441,4 +441,30 @@ void save_vector(double x_vec[], char name_file[])
     fclose(out);
 }
 
+
+
+/*************************
+Fisher
+F[P]=0.25*sum(j=1 hasta N-1) [2*(p_{j+1}-p_j)^2/p_{j+1}+p_j]    ;si p_{j+1}=p_j=0 ese termino j vale cero
+
+***************************/
+//******** calcula Fisher de BAND Y POMPE***********************************
+//F[P]=0.25*sum(j=1 hasta N-1) [2*(p_{j+1}-p_j)^2/p_{j+1}+p_j]    ;si p_{j+1}=p_j=0 ese termino j vale cero
+double fisher_information(double PDF_vec[])
+{
+    unsigned long int LengthPDF = PDF_vec[0];
+    double inv_length = 1/(double)LengthPDF;
+    double FIM=0;
+
+	for (unsigned long int i_pdf = 1; i_pdf < LengthPDF; i_pdf++)
+    {
+        if (PDF_vec[i_pdf]!=0 || PDF_vec[i_pdf+1]!=0)
+        {
+            FIM = FIM + 2*(pow((PDF_vec[i_PDF+1]-PDF_vec[i_PDF]),2))/(PDF_vec[i_PDF+1]+PDF_vec[i_PDF]);
+        }
+    }
+	F=0.25*F;
+	return F;
+}
+
 #endif // MAXIUTILS_H_INCLUDED
