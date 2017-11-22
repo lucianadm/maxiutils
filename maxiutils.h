@@ -138,10 +138,10 @@ double* PDF_val(double x_vec[], unsigned long int bins, double Margins[2], char 
         PDF_val_vec[0] = (double)bins;
         for (unsigned long int i_hist = 1; i_hist <= bins; i_hist++) PDF_val_vec[i_hist] = 0; //Initializes the PDF at zero.
 
-    double* x_norm = normalize_vector(x_vec, Margins);//Vector must be normalyzed. x_norm  will be a pointer asociated to an allocated array
+    double* x_norm = normalize_vector(x_vec, Margins);//Vector must be normalized. x_norm  will be a pointer asociated to an allocated array
 
     unsigned long int histogram_index;
-    for (unsigned long int i_norm = 1; i_norm <= LengthX; i_norm++)//For each position of the normalyzed vector. Are missing the last embedd-1 positions
+    for (unsigned long int i_norm = 1; i_norm <= LengthX; i_norm++)//For each position of the normalized vector. Are missing the last embedd-1 positions
     {
         histogram_index = (unsigned long int)floor((double)bins * x_norm[i_norm]) + 1;//Calculate the index for histogram
         PDF_val_vec[histogram_index] += 1;//Increment the position
@@ -149,18 +149,18 @@ double* PDF_val(double x_vec[], unsigned long int bins, double Margins[2], char 
     free(x_norm);//Releases the vector allocated by normalize_vector() function.
 
     //Elige y devuelve el resultado
-    if (strcmp(ResultType,"normalyzed") == 0)
+    if (strcmp(ResultType,"normalized") == 0)
     {
         normalize_PDF(PDF_val_vec);
         return PDF_val_vec;
     }
-    else if (strcmp(ResultType,"unnormalyzed") == 0)
+    else if (strcmp(ResultType,"unnormalized") == 0)
     {
         return PDF_val_vec;
     }
     else
     {
-        puts("PDF_val: Type of result normalization may be normalyzed or unnormalyzed. Default = normalized");
+        puts("PDF_val: Type of result normalization may be normalized or unnormalized. Default = normalized");
         return PDF_val_vec;
     }
 }
@@ -179,7 +179,7 @@ Returned value:
 Caution:
     The allocated vector needs to be unallocated outside this function.
 ********************************************************************************/
-double* PDF_BP(double x_vec[], unsigned long int embedd, char EmbType[], char ResultType[])
+double* PDF_BP(double x_vec[], unsigned long int embedd,unsigned long int tau, char EmbType[], char ResultType[])
 {
     unsigned Jump = 1; //Número relacionado con el tipo de normalización que se pide
     if (strcmp(EmbType,"overlapped") == 0) Jump = 1;
@@ -187,11 +187,12 @@ double* PDF_BP(double x_vec[], unsigned long int embedd, char EmbType[], char Re
     else puts("PDF_BP: Type of mebedding may be overlapped or not_overlapped. Default = overlapped");
 
     unsigned ResultNorm = 1; //Número relacionado con el tipo de normalización que se pide
-    if (strcmp(ResultType,"normalyzed") == 0) ResultNorm = 1;
+    if (strcmp(ResultType,"normalized") == 0) ResultNorm = 1;
     else if (strcmp(ResultType,"unnormalized") == 0) ResultNorm = 2;
-    else puts("PDF_BP: Type of result type may be normalyzed or unnormalyzed. Default = normalyzed");
+    else puts("PDF_BP: Type of result type may be normalized or unnormalized. Default = normalized");
 
     unsigned long int LengthX = x_vec[0];
+    unsigned long int LastEmbPosition = LengthX - tau*(embedd - 1); //La última posición que se va a adoptar sobre el vector
 
     /**Calculates the length of PDF_BP=embedd! and creates the vector. Creates the factorial basis*/
     unsigned long int BP_length = 1;
@@ -207,18 +208,37 @@ double* PDF_BP(double x_vec[], unsigned long int embedd, char EmbType[], char Re
         PDF_BP_vec[0] = BP_length;
         for (unsigned long int i_BP = 1; i_BP <= BP_length; i_BP++) PDF_BP_vec[i_BP] = 0;
 
+    double *Emb_vec;//Create the pointer
+        Emb_vec = (double*) malloc ( sizeof(double) * (embedd + 1)); //Create the array
+
     /**Generates the PDF_BP*/
     unsigned long int ordering_pattern;//Inicializes the ordering pattern for BP and BPW
 
-    for (unsigned long int i_vec = 1; i_vec <= LengthX - embedd + 1; i_vec += Jump) //For each position of the input vector.
+    for (unsigned long int i_vec = 1; i_vec <= LastEmbPosition; i_vec += Jump) //For each position of the input vector.
     {
+
+        for (unsigned long int i_emb = 0; i_emb <= embedd - 1; i_emb++)
+        {
+            Emb_vec[i_emb] = x_vec[i_vec + tau*i_emb];
+        }
+
+        /**/
+        printf("\n D: ");
+        for (int i = 0; i < embedd; i++)
+        {
+            printf("%.0f ", Emb_vec[i]);
+        }
+        /**/
+
         /**Calculate the lexicographic order to embedding vector with Lemher method*/
         ordering_pattern = 1;//First index of PDF_BP is 1, the 0 is reserved for the length. Ordering patern is between 1 and embedd!
-        for (unsigned long int i_pos = i_vec; i_pos < i_vec + embedd - 1; i_pos++)
+        for (unsigned long int i_pos = 0; i_pos < embedd - 1; i_pos++)
         {
-            for (unsigned long int i_comp = i_pos + 1; i_comp < i_vec + embedd; i_comp++)
+            for (unsigned long int i_comp = i_pos + 1; i_comp < embedd; i_comp++)
             {
-                if (x_vec[i_pos] > x_vec[i_comp]) ordering_pattern += factorial_basis[i_pos-i_vec];
+                if (Emb_vec[i_pos] > Emb_vec[i_comp]) ordering_pattern += factorial_basis[i_pos];
+/**/                printf("\n\t%.0f > %.0f ?",Emb_vec[i_pos], Emb_vec[i_comp]);
+                    printf("  %d", ordering_pattern);    /**/
             }
         }
         PDF_BP_vec[ordering_pattern] += 1;//Increments the position
@@ -322,9 +342,9 @@ double entropy(double PDF_vec[], char ResultType[])
     double H;
 
     unsigned ResultNorm = 1; //Número relacionado con el tipo de normalización que se pide
-    if (strcmp(ResultType,"normalyzed") == 0) ResultNorm = 1;
+    if (strcmp(ResultType,"normalized") == 0) ResultNorm = 1;
     else if (strcmp(ResultType,"unnormalized") == 0) ResultNorm = 2;
-    else puts("entropy: Type of result type may be normalyzed or unnormalyzed. Default = normalyzed");
+    else puts("entropy: Type of result type may be normalized or unnormalized. Default = normalized");
 
     for (unsigned long int i_PDF = 1; i_PDF <= LengthPDF; i_PDF++)
     {
@@ -355,9 +375,9 @@ double disequilibrum(double PDF_vec[], char ResultType[])
     double S_p = 0;
 
     unsigned ResultNorm = 1; //Número relacionado con el tipo de normalización que se pide
-    if (strcmp(ResultType,"normalyzed") == 0) ResultNorm = 1;
+    if (strcmp(ResultType,"normalized") == 0) ResultNorm = 1;
     else if (strcmp(ResultType,"unnormalized") == 0) ResultNorm = 2;
-    else puts("disequilibrum: Type of result type may be normalyzed or unnormalyzed. Default = normalyzed");
+    else puts("disequilibrum: Type of result type may be normalized or unnormalized. Default = normalized");
 
     for (unsigned long int i_PDF = 1; i_PDF <= LengthPDF; i_PDF++)
     {
@@ -447,7 +467,7 @@ void save_vector(double x_vec[], char name_file[])
 Fisher
 F[P]=0.25*sum(j=1 hasta N-1) [2*(p_{j+1}-p_j)^2/p_{j+1}+p_j]    ;si p_{j+1}=p_j=0 ese termino j vale cero
 
-***************************/
+***************************
 //******** calcula Fisher de BAND Y POMPE***********************************
 //F[P]=0.25*sum(j=1 hasta N-1) [2*(p_{j+1}-p_j)^2/p_{j+1}+p_j]    ;si p_{j+1}=p_j=0 ese termino j vale cero
 double fisher_information(double PDF_vec[])
@@ -466,5 +486,5 @@ double fisher_information(double PDF_vec[])
 	F=0.25*F;
 	return F;
 }
-
+/**/
 #endif // MAXIUTILS_H_INCLUDED

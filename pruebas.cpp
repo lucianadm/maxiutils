@@ -48,6 +48,7 @@ int main()
     puts("");
     /**/
 
+    /**
     puts("Busca período");
     double DoubleAux;
     double Vector[] = {10, 3, 5, 5, 5, 1, 1, 3, 2, 5, 5};
@@ -60,4 +61,20 @@ int main()
     printf("\nfind_period(Vector, 2)\t%.0f\n", DoubleAux);
     printf("\n");
     /**/
+
+    puts("Probando PDF_BP con retardo tau");
+    double Vector[] = {10, 3, 2, 5, 5, 1, 1, 3, 2, 5, 5};
+    unsigned long int D = 3;
+    unsigned long int T = 2;
+
+    double* BPHist = PDF_BP(Vector, D, T, "overlapped", "unnormalized");
+    printf("\n\n BPHist: ");
+    for (int i = 1; i <= BPHist[0]; i++)
+    {
+        printf("%.0f ", BPHist[i]);
+    }
+
+    printf("\n\n Tocame una tecla");
+    getchar();
+
 }
